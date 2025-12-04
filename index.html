@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <!-- Configuración para Móviles y PWA (App Nativa) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <!-- iOS: Capacidad de Web App (Pantalla completa) -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Entrenador">
+    
+    <!-- Android: Capacidad de Web App -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0f172a">
+
+    <title>Rutina Running + Pesas</title>
+    
+    <style>
+        /* --- ESTILOS NATIVOS --- */
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+            --accent: #3b82f6;
+            --border: rgba(255, 255, 255, 0.1);
+            --safe-area-top: env(safe-area-inset-top);
+            --safe-area-bottom: env(safe-area-inset-bottom);
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            /* Deshabilita selección de texto para sensación de App nativa */
+            user-select: none; 
+            -webkit-user-select: none;
+        }
+
+        body {
+            margin: 0;
+            /* Padding para respetar el 'notch' de los celulares modernos */
+            padding: calc(20px + var(--safe-area-top)) 20px calc(80px + var(--safe-area-bottom)) 20px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh; 
+            overscroll-behavior-y: none; /* Evita rebote elástico en scroll global */
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        h1 {
+            margin: 0;
+            font-size: 28px;
+            background: linear-gradient(to right, #60a5fa, #34d399);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        /* Selector de Días */
+        .days-grid {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 25px;
+        }
+        .day-btn {
+            background: #334155;
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+            padding: 10px 16px; /* Botones un poco más grandes para dedo */
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            touch-action: manipulation;
+        }
+        .day-btn.active {
+            background-color: var(--accent);
+            color: white;
+            border-color: var(--accent);
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+            transform: scale(1.05);
+        }
+
+        /* Tarjeta Principal */
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 24px; /* Bordes más redondeados estilo iOS */
+            padding: 24px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 15px;
+        }
+
+        .day-title {
+            font-size: 28px;
+            font-weight: 800; /* Más bold */
+            margin: 0;
+            color: white;
+        }
+
+        .badge {
+            display: inline-block;
+            margin-top: 8px;
+            padding: 6px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .badge.duro { background: rgba(249, 115, 22, 0.2); color: #fb923c; }
+        .badge.suave { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+        .badge.rest { background: rgba(51, 65, 85, 0.5); color: #94a3b8; }
+
+        /* Toggle Pilates */
+        .toggle-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            /* Área táctil mejorada */
+            padding: 5px; 
+        }
+        .toggle-label-text {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 28px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #334155;
+            transition: .3s;
+            border-radius: 30px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        input:checked + .slider { background-color: #ec4899; }
+        input:checked + .slider:before { transform: translateX(22px); }
+
+        /* Contenido */
+        .run-box {
+            background: linear-gradient(180deg, rgba(30, 41, 59, 0.7) 0%, rgba(30, 41, 59, 0.3) 100%);
+            padding: 16px;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            margin-bottom: 24px;
+        }
+        .run-title {
+            color: #60a5fa;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+        }
+        .run-desc { font-style: italic; font-size: 15px; color: #cbd5e1; margin: 0; line-height: 1.5; }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            color: white;
+        }
+        .icon-svg { margin-right: 10px; width: 22px; height: 22px; }
+
+        /* Lista de Ejercicios */
+        .exercise-item {
+            background: #1e293b;
+            border: 1px solid #334155;
+            padding: 16px;
+            border-radius: 16px;
+            margin-bottom: 12px;
+            transition: transform 0.1s, border-color 0.2s;
+        }
+        .exercise-item:active { 
+            border-color: var(--accent); 
+            transform: scale(0.98); /* Efecto de click táctil */
+        }
+        
+        .ex-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .ex-name { font-weight: 600; font-size: 16px; color: white; }
+        
+        .btn-video {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+        }
+
+        .ex-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        .stat-box {
+            background: rgba(15, 23, 42, 0.5);
+            padding: 8px 12px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .stat-val { color: #e2e8f0; font-weight: 700; font-family: monospace; font-size: 14px; }
+        
+        .ex-note {
+            margin-top: 10px;
+            font-size: 13px;
+            color: #facc15;
+            background: rgba(250, 204, 21, 0.1);
+            padding: 8px 12px;
+            border-radius: 8px;
+            line-height: 1.4;
+        }
+
+        .pilates-mode {
+            background: rgba(236, 72, 153, 0.1);
+            border: 1px solid rgba(236, 72, 153, 0.3);
+            padding: 24px;
+            border-radius: 16px;
+            text-align: center;
+        }
+
+        /* SVG Colors */
+        .text-blue { color: #60a5fa; }
+        .text-pink { color: #f472b6; }
+        .text-red { color: #f87171; }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Entrenador Personal</h1>
+            <p class="subtitle">Running + Fuerza</p>
+        </header>
+
+        <div id="days-container" class="days-grid">
+            <!-- Botones inyectados por JS -->
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <h2 id="day-title" class="day-title">Lunes</h2>
+                    <span id="day-badge" class="badge duro">Cargando...</span>
+                </div>
+                
+                <div id="toggle-wrapper" class="toggle-container">
+                    <span class="toggle-label-text">¿Pilates?</span>
+                    <label class="switch">
+                        <input type="checkbox" id="pilates-check">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div id="content-area">
+                <!-- Contenido inyectado por JS -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // USO DE 'VAR' EN LUGAR DE 'CONST' PARA EVITAR ERRORES SI EL SCRIPT SE REINICIA
+        
+        var ROUTINE_DATA = {
+            "Lunes": {
+                run: "Running Duro", desc: "Intervalos: Fortalecer abdomen.", type: "suave", focus: "Core y Estabilidad",
+                ex: [
+                    { n: "Plancha (Plank)", s: "3", r: "30-45s", t: "Espalda recta" },
+                    { n: "Bird-Dog", s: "3", r: "12/lado", t: "Lento, cuida lumbar" },
+                    { n: "Vuelos Laterales", s: "3", r: "15", t: "Sentado, peso liviano" },
+                    { n: "Curl de Bíceps", s: "3", r: "12-15", t: "De pie" }
+                ]
+            },
+            "Martes": {
+                run: "Running Suave", desc: "Recuperación activa. Carga pesada.", type: "fuerte", focus: "Fuerza: Empuje/Pierna",
+                ex: [
+                    { n: "Goblet Squat", s: "4", r: "12-15", t: "Baja controlado" },
+                    { n: "Floor Press", s: "4", r: "12", t: "Pecho en suelo" },
+                    { n: "Zancadas (Lunges)", s: "3", r: "10/p", t: "Estáticas" },
+                    { n: "Press Militar", s: "4", r: "10-12", t: "Sentado" }
+                ]
+            },
+            "Miércoles": {
+                run: "Running Duro", desc: "Fartlek: Mover lactato.", type: "suave", focus: "Brazos y Bombeo",
+                ex: [
+                    { n: "Copa Tríceps", s: "3", r: "15", t: "Tras nuca" },
+                    { n: "Curl Martillo", s: "3", r: "15", t: "Neutro" },
+                    { n: "Gemelos", s: "4", r: "20", t: "Arde pero sirve" },
+                    { n: "Dead Bug", s: "3", r: "15", t: "Core" }
+                ]
+            },
+            "Jueves": {
+                run: "Running Suave", desc: "Recuperación. Glúteo y Espalda.", type: "fuerte", focus: "Fuerza: Tracción",
+                ex: [
+                    { n: "Puente Glúteo", s: "4", r: "15", t: "Aprieta 2s arriba" },
+                    { n: "Remo 1 Mano", s: "4", r: "12/b", t: "Espalda plana" },
+                    { n: "Zancadas Atrás", s: "3", r: "10/p", t: "Reverse Lunges" },
+                    { n: "Facepull/Remo", s: "3", r: "15", t: "Codos arriba" }
+                ]
+            },
+            "Viernes": {
+                run: "Running Duro", desc: "Larga distancia. Movilidad.", type: "suave", focus: "Movilidad",
+                ex: [
+                    { n: "Rotación Externa", s: "3", r: "15", t: "Peso pluma" },
+                    { n: "Giros Rusos", s: "3", r: "20", t: "Sin mucho peso" },
+                    { n: "Buenos Días", s: "3", r: "10", t: "Sin peso (Hip Hinge)" }
+                ]
+            },
+            "Sábado": {
+                run: "Sin Running", desc: "Día metabólico duro.", type: "fuerte", focus: "Full Body Metabólico",
+                ex: [
+                    { n: "Thrusters", s: "4", r: "12", t: "Sentadilla+Press" },
+                    { n: "Remo Renegado", s: "4", r: "10/b", t: "En plancha" },
+                    { n: "Caminata Granjero", s: "4", r: "1 min", t: "Muy pesado" },
+                    { n: "Flexiones", s: "3", r: "Fallo", t: "Push-ups" }
+                ]
+            },
+            "Domingo": {
+                run: "Descanso", desc: "Descanso total o caminar.", type: "rest", focus: "Descanso", ex: []
+            }
+        };
+
+        var DAYS_LIST = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+        var currentDayVar = "Lunes";
+        var isPilatesVar = false;
+
+        var SVG_ICONS = {
+            run: '<svg class="icon-svg text-blue" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>',
+            dumbbell: '<svg class="icon-svg text-blue" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6.5 6.5 11 11"/><path d="m21 21-1-1"/><path d="m3 3 1 1"/><path d="m18 22 4-4"/><path d="m2 6 4-4"/><path d="m3 10 7.9-7.9a2.12 2.12 0 0 1 3 3L6.9 12.1a2 2 0 0 0-.6 1l-1.4 5.9a1.02 1.02 0 0 1-1.48.33l-.8-.8a1.02 1.02 0 0 1-.33-1.48L8.1 13.7a2 2 0 0 0-.99-.61L4.1 11.2a2.12 2.12 0 0 1 3-3z"/></svg>',
+            pilates: '<svg class="icon-svg text-pink" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 2.5-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>',
+            video: '<svg style="width:14px;height:14px;margin-right:4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17"/><path d="m10 15 5-3-5-3z"/></svg>'
+        };
+
+        function initAppSystem() {
+            var container = document.getElementById('days-container');
+            if (!container) return; // Seguridad extra
+            
+            // Si ya hay botones, no los volvemos a crear (evita duplicados si el script corre dos veces)
+            if (container.innerHTML.trim() === "") {
+                renderDayButtons();
+            }
+            
+            // Listener del toggle
+            var toggle = document.getElementById('pilates-check');
+            // Clonamos el nodo para eliminar listeners viejos si el script se reinicia
+            if (toggle) {
+                var newToggle = toggle.cloneNode(true);
+                toggle.parentNode.replaceChild(newToggle, toggle);
+                newToggle.addEventListener('change', function(e) {
+                    isPilatesVar = e.target.checked;
+                    renderRoutineContent();
+                });
+            }
+            
+            renderRoutineContent();
+        }
+
+        function renderDayButtons() {
+            var container = document.getElementById('days-container');
+            var html = '';
+            // Usamos bucle for clásico para máxima compatibilidad
+            for (var i = 0; i < DAYS_LIST.length; i++) {
+                var day = DAYS_LIST[i];
+                var activeClass = (day === currentDayVar) ? 'active' : '';
+                html += '<button class="day-btn ' + activeClass + '" onclick="updateSelectedDay(\'' + day + '\')">' + day.substring(0,3) + '</button>';
+            }
+            container.innerHTML = html;
+        }
+
+        // Función global expuesta a Window
+        window.updateSelectedDay = function(day) {
+            currentDayVar = day;
+            isPilatesVar = false;
+            var toggle = document.getElementById('pilates-check');
+            if (toggle) toggle.checked = false;
+            
+            renderDayButtons(); // Re-render para actualizar clases active
+            renderRoutineContent();
+        }
+
+        function renderRoutineContent() {
+            var data = ROUTINE_DATA[currentDayVar];
+            
+            var titleEl = document.getElementById('day-title');
+            if (titleEl) titleEl.innerText = currentDayVar;
+            
+            var badge = document.getElementById('day-badge');
+            if (badge) {
+                badge.innerText = data.run;
+                var bClass = 'rest';
+                if (data.run.indexOf('Duro') !== -1) bClass = 'duro';
+                if (data.run.indexOf('Suave') !== -1) bClass = 'suave';
+                badge.className = 'badge ' + bClass;
+            }
+
+            var toggleWrapper = document.getElementById('toggle-wrapper');
+            if (toggleWrapper) {
+                toggleWrapper.style.display = (data.type === 'rest') ? 'none' : 'flex';
+            }
+
+            var html = '';
+
+            if (data.type !== 'rest') {
+                html += '<div class="run-box">' +
+                        '<div class="run-title">' + SVG_ICONS.run + ' OBJETIVO RUNNING</div>' +
+                        '<p class="run-desc">"' + data.desc + '"</p>' +
+                        '</div>';
+            }
+
+            if (isPilatesVar) {
+                html += '<div class="section-title">' + SVG_ICONS.pilates + ' Pilates Reformer</div>' +
+                        '<div class="pilates-mode">' +
+                        '<p style="color:#fbcfe8; font-weight:bold; margin-bottom:5px;">Modo Pilates Activo</p>' +
+                        '<p style="color:#94a3b8; font-size:13px;">Regla de Oro: Esta clase reemplaza las pesas de hoy. ¡Disfruta!</p>' +
+                        '</div>';
+            } else {
+                if (data.type === 'rest') {
+                    html += '<div style="text-align:center; padding:40px; color:#64748b;">' +
+                            '<div style="font-size:30px; margin-bottom:10px;">💤</div>' +
+                            'Día de descanso total.' +
+                            '</div>';
+                } else {
+                    html += '<div class="section-title">' + SVG_ICONS.dumbbell + ' ' + data.focus + '</div>';
+                    
+                    for (var j = 0; j < data.ex.length; j++) {
+                        var e = data.ex[j];
+                        var ytUrl = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(e.n + " tecnica");
+                        
+                        html += '<div class="exercise-item">' +
+                                '<div class="ex-header">' +
+                                '<span class="ex-name">' + e.n + '</span>' +
+                                '<a href="' + ytUrl + '" target="_blank" class="btn-video">' + SVG_ICONS.video + ' Ver</a>' +
+                                '</div>' +
+                                '<div class="ex-stats">' +
+                                '<div class="stat-box"><span>SETS</span> <span class="stat-val">' + e.s + '</span></div>' +
+                                '<div class="stat-box"><span>REPS</span> <span class="stat-val">' + e.r + '</span></div>' +
+                                '</div>';
+                        
+                        if (e.t) {
+                            html += '<div class="ex-note">💡 ' + e.t + '</div>';
+                        }
+                        html += '</div>';
+                    }
+                }
+            }
+
+            var contentArea = document.getElementById('content-area');
+            if (contentArea) contentArea.innerHTML = html;
+        }
+
+        // Ejecutar
+        initAppSystem();
+
+    </script>
+</body>
+</html>
